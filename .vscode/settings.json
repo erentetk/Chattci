@@ -1,0 +1,33 @@
+{
+    "colorize.languages": [
+        "javascript",
+        "typescript",
+        "javascriptreact",
+        "typescriptreact",
+        "css",
+        "sass",
+        "scss",
+        "less",
+        "postcss",
+        "json"
+    ],
+    "colorize.enable_search_variables": true,
+    "colorize.include": [
+        "**/*.css",
+        "**/*.scss",
+        "**/*.sass",
+        "**/*.less",
+        "**/*.js",
+        "**/*.jsx",
+        "**/*.ts",
+        "**/*.tsx"
+    ],
+    "colorize.colorized_variables": [
+        "CSS",
+        "SASS",
+        "LESS",
+        "JavaScript"
+    ],
+    "colorize.decoration_type": "background",
+    "editor.formatOnSave": true
+}
