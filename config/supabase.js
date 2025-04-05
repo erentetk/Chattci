@@ -3,7 +3,14 @@ import { supabaseConfig } from './constants';
 
 const supabase = createClient(
     supabaseConfig.supabaseUrl,
-    supabaseConfig.supabaseKey
+    supabaseConfig.supabaseKey,
+    {
+        realtime: {
+            params: {
+                eventsPerSecond: 10
+            }
+        }
+    }
 );
 
 export default supabase; 

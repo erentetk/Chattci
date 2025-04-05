@@ -15,6 +15,7 @@ import Notifications from './screens/Notifications';
 import About from './screens/About';
 import Help from './screens/Help';
 import EditProfile from './screens/EditProfile';
+import NewChatScreen from './screens/NewChats';  // NewChat.js yerine NewChats.js
 import { colors } from './config/constants';
 import supabase from './config/supabase';
 
@@ -97,7 +98,18 @@ const AuthProvider = ({ children }) => {
     user,
     loading,
     setUser,
-    checkUser
+    checkUser,
+    supabase,
+    signOut: async () => {
+      try {
+        await supabase.auth.signOut();
+        setUser(null);
+        return { success: true };
+      } catch (error) {
+        console.error("Çıkış yapma hatası:", error.message);
+        return { success: false, error };
+      }
+    }
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -139,7 +151,6 @@ const ChatsScreen = () => {
       }}
     >
       <ChatsStack.Screen name="Chats" component={Chats} />
-      <ChatsStack.Screen name="Chat" component={Chat} />
     </ChatsStack.Navigator>
   );
 };
@@ -238,6 +249,35 @@ const AppScreens = () => (
         headerBackTitle: 'Geri'
       }}
     />
+    {/* Add NewChat screen to the main stack */}
+    <MainStack.Screen
+      name="NewChat"
+      component={NewChatScreen}
+      options={{
+        headerShown: true,
+        title: 'Yeni Sohbet Başlat',
+        headerStyle: {
+          backgroundColor: colors.primary,
+        },
+        headerTintColor: '#fff', // White color for title and back button
+        headerBackTitle: 'Geri', // Text for the back button on iOS
+      }}
+    />
+
+    {/* Chat ekranını ana navigasyon stack'ine de ekleyelim */}
+    <MainStack.Screen
+      name="Chat"
+      component={Chat}
+      options={{
+        headerShown: true,
+        title: 'Sohbet',
+        headerStyle: {
+          backgroundColor: colors.primary,
+        },
+        headerTintColor: '#fff',
+        headerBackTitle: 'Geri'
+      }}
+    />
   </MainStack.Navigator>
 );
 
@@ -267,5 +307,3 @@ const RootNavigator = () => {
 };
 
 export default App;
-
-

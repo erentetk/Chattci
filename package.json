@@ -6,23 +6,25 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "ios": "expo start --ios"
   },
   "dependencies": {
-    "@expo/webpack-config": "^19.0.1",
+    "@expo/metro-runtime": "~4.0.1",
+    "@expo/vector-icons": "^14.0.4",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-navigation/bottom-tabs": "^7.2.1",
     "@react-navigation/drawer": "^7.1.2",
     "@react-navigation/native": "^7.0.15",
     "@react-navigation/stack": "^7.1.2",
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/supabase-js": "^2.49.4",
     "base64-arraybuffer": "^1.0.2",
     "expo": "~52.0.37",
+    "expo-font": "^13.0.4",
     "expo-image-picker": "^16.0.6",
     "expo-status-bar": "~2.0.1",
+    "globalthis": "^1.0.4",
     "react": "18.3.1",
-    "react-dom": "^18.2.0",
+    "react-dom": "18.3.1",
     "react-native": "0.76.7",
     "react-native-dotenv": "^3.4.11",
     "react-native-gesture-handler": "~2.20.2",
@@ -32,10 +34,12 @@
     "react-native-safe-area-context": "^5.3.0",
     "react-native-screens": "^4.9.1",
     "react-native-vector-icons": "^10.2.0",
-    "react-native-web": "^0.18.12"
+    "react-native-web": "~0.19.13"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "buffer": "^6.0.3",
+    "process": "^0.11.10"
   },
   "private": false
 }

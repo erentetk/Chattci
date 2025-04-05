@@ -38,6 +38,20 @@ const Login = ({ navigation }) => {
             return;
         }
 
+        // E-posta doğrulama kontrolü
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            setError('Geçersiz e-posta formatı. Lütfen doğru bir e-posta adresi girin.');
+            return;
+        }
+
+        // .com yerine .coım yazılmış olabilir mi kontrolü
+        if (email.includes('gmail.coım')) {
+            const correctedEmail = email.replace('gmail.coım', 'gmail.com');
+            setError(`E-posta adresiniz hatalı olabilir. Belki şunu demek istediniz: ${correctedEmail}?`);
+            return;
+        }
+
         try {
             setLoading(true);
             setError('');
@@ -101,7 +115,7 @@ const Login = ({ navigation }) => {
             console.error('Giriş hatası:', error.message, error);
 
             if (error.message.includes('Invalid login credentials')) {
-                setError('E-posta veya şifre hatalı, lütfen kontrol edin.');
+                setError('E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin ve yazım hatası olup olmadığını dikkatle inceleyin.');
             } else if (error.message.includes('network')) {
                 setError('Ağ bağlantı sorunu. İnternet bağlantınızı kontrol edin.');
             } else if (error.message.includes('timeout')) {

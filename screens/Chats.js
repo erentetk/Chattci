@@ -1,65 +1,59 @@
-import React, { useEffect, useState } from 'react';
-import { View, FlatList, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useLayoutEffect } from 'react'; // Import useLayoutEffect
+import { View, FlatList, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import ContactRow from '../components/ContactRow';
 import Seperator from '../components/Seperator';
 import { colors } from '../config/constants';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons'; // Import Ionicons
 import supabase from '../config/supabase';
 import { useAuth } from '../App';
-
-// iOS için optimize edilmiş örnek sohbet verileri
-const chatData = [
-  {
-    id: '1',
-    name: 'Eren TETİK',
-    message: 'Merhaba, akşam yemeği için seni bekliyorum',
-    avatar: 'ET',
-    timestamp: new Date(new Date().getTime() - 30 * 60000), // 30 dakika önce
-    unread: 2,
-  },
-  {
-    id: '2',
-    name: 'Selami Sahin',
-    message: 'Merhaba, nasılsın?',
-    avatar: 'KT',
-    timestamp: new Date(new Date().getTime() - 2 * 60 * 60000), // 2 saat önce
-    unread: 0,
-  },
-  {
-    id: '3',
-    name: 'Ahmet Yılmaz',
-    message: 'Projemiz tamamlandı mı?',
-    avatar: 'AY',
-    timestamp: new Date(new Date().getTime() - 5 * 60 * 60000), // 5 saat önce
-    unread: 1,
-  },
-  {
-    id: '4',
-    name: 'Ayşe Demir',
-    message: 'Toplantı saat 14:00\'te başlayacak',
-    avatar: 'AD',
-    timestamp: new Date(new Date().getTime() - 24 * 60 * 60000), // 1 gün önce
-    unread: 0,
-  },
-];
+import { getConversationsWithLastMessages } from '../services/chatService'; // Import the new service function
 
 const Chats = ({ navigation }) => {
-  const { user, checkUser } = useAuth();
-  const [chats, setChats] = useState(chatData);
+  const { user, checkUser, supabase, signOut } = useAuth();
+  const [chats, setChats] = useState([]); // Initialize with empty array
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [isLoadingChats, setIsLoadingChats] = useState(false); // Add loading state for chats
 
-  useEffect(() => {
-    // Başlık ayarı
+  // Add the handleLogout function
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      // Navigation should be handled automatically by the auth state change
+    } catch (error) {
+      console.error("Çıkış yaparken hata:", error);
+      Alert.alert("Hata", "Çıkış yapılırken bir sorun oluştu.");
+    }
+  };
+
+  // --- Header Setup ---
+  useLayoutEffect(() => {
     navigation.setOptions({
       headerStyle: {
         backgroundColor: colors.primary,
       },
-      headerTintColor: 'white',
+      headerTintColor: 'white', // Color of back button and title
       headerTitleStyle: {
         fontWeight: 'bold',
       },
+      // Add the New Chat button to the header
+      headerRight: () => (
+        <View style={{ flexDirection: 'row', marginRight: 10 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('NewChat')} // Navigate to NewChatScreen
+            style={{ marginRight: 15 }} // Add some margin between icons
+          >
+            <Ionicons name="create-outline" size={24} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+      ),
     });
+  }, [navigation, handleLogout]); // Add handleLogout to dependencies if it's not stable
 
+  // Effect for Auth Check
+  useEffect(() => {
     // Oturum kontrolü
     const checkSession = async () => {
       setIsAuthChecking(true);
@@ -90,10 +84,57 @@ const Chats = ({ navigation }) => {
     };
 
     checkSession();
-  }, [navigation, user, checkUser]);
+  }, [navigation, user, checkUser]); // Dependency on user and checkUser
+
+  // Effect for Fetching Chats after Auth Check
+  useEffect(() => {
+    const fetchChats = async () => {
+      if (user && !isAuthChecking) {
+        setIsLoadingChats(true);
+        try {
+          // Yeni fonksiyonu kullanarak sohbetleri ve son mesajları getir
+          const fetchedConversations = await getConversationsWithLastMessages(user.id);
+
+          // Map fetched data to the structure expected by ContactRow
+          const formattedChats = fetchedConversations
+            .filter(conv => conv.profiles) // Ensure the other participant's profile exists
+            .map(conv => ({
+              id: conv.id, // Conversation ID
+              otherUserId: conv.profiles.id, // Other user's ID
+              name: conv.profiles.username || 'Bilinmeyen Kullanıcı', // Other user's name
+              message: conv.last_message || 'Henüz mesaj yok', // Son mesaj içeriğini kullan
+              avatarUrl: conv.profiles.avatar_url, // Other user's avatar
+              timestamp: conv.last_message_time || conv.updated_at, // Son mesaj zamanı
+              unread: conv.unread_count || 0, // Okunmamış mesaj sayısı
+              messages: conv.all_messages || [], // Tüm mesajlar (geçmiş mesajlar)
+            }));
+
+          setChats(formattedChats);
+          console.log(`${formattedChats.length} sohbet görüntüleniyor`);
+
+          // İlk birkaç mesajın içeriğini logla (debug için)
+          if (formattedChats.length > 0) {
+            console.log('İlk sohbetin son mesajı:', formattedChats[0].message);
+            console.log('İlk sohbetin mesaj sayısı:', formattedChats[0].messages?.length || 0);
+          }
+        } catch (error) {
+          console.error("Sohbetleri getirme hatası:", error);
+          // Handle error appropriately, maybe show a message to the user
+        } finally {
+          setIsLoadingChats(false);
+        }
+      } else if (!user && !isAuthChecking) {
+        // Handle case where user is not logged in after auth check
+        setChats([]); // Clear chats if user logs out
+      }
+    };
+
+    fetchChats();
+  }, [user, isAuthChecking]); // Re-run when user or auth check status changes
 
   // Zaman damgasını formatla
   const formatTime = (timestamp) => {
+    if (!timestamp) return ''; // Handle null timestamps
     const now = new Date();
     const messageDate = new Date(timestamp);
 
@@ -116,47 +157,110 @@ const Chats = ({ navigation }) => {
 
   // Sohbet öğesine tıklandığında
   const handleChatPress = (chat) => {
-    // Tıklanan sohbetin okunmamış mesaj sayısını sıfırla
-    const updatedChats = chats.map(item =>
-      item.id === chat.id ? { ...item, unread: 0 } : item
-    );
-    setChats(updatedChats);
+    // TODO: Implement unread count reset logic if needed later
+    // const updatedChats = chats.map(item =>
+    //   item.id === chat.id ? { ...item, unread: 0 } : item
+    // );
+    // setChats(updatedChats);
 
-    // Sohbet ekranına yönlendir
+    console.log("Tıklanan sohbet ID:", chat.id);
+    console.log("Yönlendirme: Ana Chat ekranına yönlendiriliyor");
+
+    // Sohbet ekranına yönlendir, conversationId ve diğer kullanıcı bilgilerini gönder
     navigation.navigate('Chat', {
-      name: chat.name,
-      userId: chat.id,
-      avatarUrl: chat.avatar ? `https://ui-avatars.com/api/?name=${chat.name.replace(' ', '+')}&background=random` : null
+      conversationId: chat.id, // Pass conversation ID
+      otherUserId: chat.otherUserId, // Pass other user's ID
+      name: chat.name, // Pass other user's name
+      avatarUrl: chat.avatarUrl // Pass other user's avatar URL
     });
   };
 
-  // Auth kontrol ediliyor, uygun ekranı göster
-  if (isAuthChecking) {
+  // Auth kontrol ediliyor veya sohbetler yükleniyor, uygun ekranı göster
+  if (isAuthChecking || isLoadingChats) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Oturum kontrol ediliyor...</Text>
+        <Text style={styles.loadingText}>
+          {isAuthChecking ? 'Oturum kontrol ediliyor...' : 'Sohbetler yükleniyor...'}
+        </Text>
       </View>
     );
   }
 
+  // Kullanıcı yoksa veya sohbet yoksa mesaj göster
+  if (!user) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Text style={styles.infoText}>Sohbetleri görmek için giriş yapmalısınız.</Text>
+      </View>
+    );
+  }
+
+  if (chats.length === 0) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Text style={styles.infoText}>Henüz mesaj yok.</Text> {/* Changed empty state text */}
+        {/* TODO: Add a button to start a new chat */}
+
+        {/* Yeni sohbet butonu */}
+        <TouchableOpacity
+          style={styles.fabButton}
+          onPress={() => navigation.navigate('NewChat')}
+        >
+          <Ionicons name="add" size={30} color="white" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="white" />
-      <FlatList
-        data={chats}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ContactRow
-            name={item.name}
-            subtitle={item.message}
-            time={formatTime(item.timestamp)}
-            unread={item.unread}
-            onPress={() => handleChatPress(item)}
-          />
-        )}
-        ItemSeparatorComponent={Seperator}
-      />
+      <StatusBar style="auto" />
+
+      {isLoadingChats ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={chats}
+          keyExtractor={(item) => item.id ? String(item.id) : Math.random().toString()}
+          renderItem={({ item }) => {
+            // Debug için kontroller
+            if (!item || !item.name) {
+              console.warn("Geçersiz sohbet öğesi:", item);
+              return null; // Geçersiz öğeler için hiçbir şey render etme
+            }
+
+            return (
+              <ContactRow
+                name={item.name || ''}
+                subtitle={item.message || ''}
+                onPress={() => handleChatPress(item)}
+                time={formatTime(item.timestamp)}
+                avatarUrl={item.avatarUrl}
+                unread={item.unread || 0}
+              />
+            );
+          }}
+          ItemSeparatorComponent={Seperator}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Henüz hiç sohbetiniz yok.</Text>
+              <Text style={styles.emptySubText}>Sağ üstteki veya aşağıdaki + butonuna tıklayarak yeni bir sohbet başlatabilirsiniz.</Text>
+            </View>
+          )}
+        />
+      )}
+
+      {/* Yeni sohbet butonu */}
+      <TouchableOpacity
+        style={styles.fabButton}
+        onPress={() => navigation.navigate('NewChat')}
+      >
+        <Ionicons name="add" size={30} color="white" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -164,18 +268,63 @@ const Chats = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7', // iOS gri arkaplan
+    backgroundColor: 'white', // Use white background
   },
   loadingContainer: {
+    flex: 1, // Take full screen
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   loadingText: {
     marginTop: 10,
     color: colors.primary,
     fontSize: 16,
-  }
+  },
+  infoText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  headerButton: {
+    marginRight: 15, // Add some spacing
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    marginTop: 50,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 20,
+  },
+  fabButton: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    right: 20,
+    bottom: 20,
+    elevation: 5, // Android için gölge
+    shadowColor: '#000', // iOS için gölge
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
 });
 
 export default Chats;
-
